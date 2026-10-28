@@ -7,7 +7,7 @@ import { checkCommand } from "./sleep-guard.ts";
 import { WatchManager, type WatchResult, type WatchSpec } from "./watch-manager.ts";
 
 const MESSAGE_TYPE = "pi-watch";
-const ICON: Record<WatchResult["outcome"], string> = { success: "✅", failure: "❌", timeout: "⌛", error: "❗" };
+const ICON: Record<WatchResult["outcome"], string> = { success: "✓", failure: "✗", timeout: "◷", error: "!" };
 
 const env = process.env;
 const MAX_TIMEOUT_MS = Number(env.PI_WATCH_MAX_TIMEOUT_MS) || 2 * 60 * 60 * 1000;
@@ -154,10 +154,10 @@ export default function piWatch(pi: ExtensionAPI) {
 	pi.registerMessageRenderer<{ results: WatchResult[] }>(MESSAGE_TYPE, (message, { expanded, outputPad }, theme) => {
 		const results = message.details?.results ?? [];
 		const color = (o: WatchResult["outcome"]) => (o === "success" ? "success" : o === "timeout" ? "warning" : "error");
-		const lines = [theme.fg("accent", theme.bold("⏰ pi-watch woke the agent"))];
+		const lines = [theme.fg("accent", theme.bold("↻ pi-watch woke the agent"))];
 		for (const r of results) {
 			lines.push(
-				`${ICON[r.outcome]} ${theme.fg(color(r.outcome), r.outcome.padEnd(7))} ${r.goal} ${theme.fg("dim", `· ${fmtMs(r.elapsedMs)} · ${r.reason}`)}`,
+				`${theme.fg(color(r.outcome), `${ICON[r.outcome]} ${r.outcome.padEnd(7)}`)} ${r.goal} ${theme.fg("dim", `· ${fmtMs(r.elapsedMs)} · ${r.reason}`)}`,
 			);
 			if (expanded && r.tail) lines.push(theme.fg("dim", r.tail.replace(/^/gm, "    ")));
 		}
