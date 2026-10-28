@@ -27,4 +27,4 @@ createInterface({ input: pi.stdout }).on("line", (line) => {
 	}
 });
 pi.stdin.write(JSON.stringify({ id: "1", type: "prompt", message: prompt }) + "\n");
-setTimeout(() => { console.log("TIMEOUT"); pi.kill(); process.exit(1); }, 240_000);
+setTimeout(() => { console.log("TIMEOUT"); pi.kill(); process.exit(1); }, Number(process.env.SMOKE_TIMEOUT_MS) || 240_000);
