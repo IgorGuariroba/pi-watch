@@ -169,7 +169,7 @@ export class WatchManager {
 		this.watches.set(id, w);
 		w.deadline = setTimeout(() => {
 			const proc = spec.source.kind === "process" ? this.procs.get(spec.source.id) : undefined;
-			this.settle(w, "timeout", `no success within ${spec.timeoutMs}ms`, { ...w.lastObservation, event: "timeout" }, proc);
+			this.settle(w, "timeout", `no success within ${humanMs(spec.timeoutMs)}`, { ...w.lastObservation, event: "timeout" }, proc);
 		}, spec.timeoutMs);
 		if (spec.source.kind === "process") {
 			const proc = this.procs.get(spec.source.id);
@@ -375,4 +375,10 @@ function tailText(text: string, maxLines: number, maxBytes: number): string {
 	let out = text.split("\n").slice(-maxLines).join("\n");
 	if (out.length > maxBytes) out = "…" + out.slice(-maxBytes);
 	return out;
+}
+
+function humanMs(ms: number): string {
+	if (ms < 1000) return `${ms}ms`;
+	const s = Math.round(ms / 1000);
+	return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`;
 }

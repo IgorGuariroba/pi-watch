@@ -3,20 +3,42 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Wait for anything without blocking the Pi turn: register a goal, a success/failure condition and a deadline; Pi is woken up with the result. No sleep, no polling loops in the agent.",
-  "keywords": ["pi-package", "pi", "pi-extension", "watch", "wait", "poll", "background", "ci", "npm"],
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "watch",
+    "wait",
+    "poll",
+    "background",
+    "ci",
+    "npm"
+  ],
   "author": "Igor Guariroba",
   "license": "MIT",
-  "files": ["src/", "README.md", "LICENSE"],
-  "repository": { "type": "git", "url": "git+https://github.com/IgorGuariroba/pi-watch.git" },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IgorGuariroba/pi-watch.git"
+  },
   "homepage": "https://github.com/IgorGuariroba/pi-watch#readme",
-  "scripts": { "test": "node --test --test-timeout=10000 test/*.test.ts" },
+  "scripts": {
+    "test": "node --test --test-timeout=10000 test/*.test.ts"
+  },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*"
   },
   "pi": {
-    "extensions": ["./src/index.ts"],
-    "image": "https://raw.githubusercontent.com/IgorGuariroba/pi-watch/main/docs/media/cover.png"
+    "extensions": [
+      "./src/index.ts"
+    ],
+    "image": "https://raw.githubusercontent.com/IgorGuariroba/pi-watch/main/docs/media/cover.png",
+    "video": "https://github.com/IgorGuariroba/pi-watch/raw/refs/heads/main/docs/media/demo.mp4"
   }
 }

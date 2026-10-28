@@ -1,0 +1,14 @@
+#!/bin/bash
+# Demo shim (docs/demo): simulates registry propagation and a failing suite; anything else goes to the real npm.
+self=$(dirname "$(readlink -f "$0")")
+if [ "$1" = view ] && [ "$2" = @acme/sdk ]; then
+	[ -f /tmp/pi-watch-demo-t0 ] || date +%s > /tmp/pi-watch-demo-t0
+	t0=$(cat /tmp/pi-watch-demo-t0)
+	[ $(( $(date +%s) - t0 )) -ge 12 ] && echo 0.2.0 || echo 0.1.0
+	exit 0
+fi
+if [ "$1" = test ]; then
+	for f in condition sleep-guard watch-manager render; do sleep 2; echo "✔ test/$f.test.ts"; done
+	sleep 1; echo "✖ test/api.test.ts › returns 404 for unknown id"; echo "  expected 404, received 500"; exit 1
+fi
+PATH=${PATH//$self:/} exec npm "$@"

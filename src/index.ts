@@ -7,7 +7,7 @@ import { checkCommand } from "./sleep-guard.ts";
 import { WatchManager, type WatchResult, type WatchSpec } from "./watch-manager.ts";
 
 const MESSAGE_TYPE = "pi-watch";
-const ICON: Record<WatchResult["outcome"], string> = { success: "✅", failure: "❌", timeout: "⏱", error: "⚠️" };
+const ICON: Record<WatchResult["outcome"], string> = { success: "✅", failure: "❌", timeout: "⌛", error: "❗" };
 
 const env = process.env;
 const MAX_TIMEOUT_MS = Number(env.PI_WATCH_MAX_TIMEOUT_MS) || 2 * 60 * 60 * 1000;

@@ -34,8 +34,8 @@ Every watch always ends in exactly one outcome — it can never wait forever:
 |---|---|
 | ✅ `success` | the `success` condition matched |
 | ❌ `failure` | the `failure` condition matched, or the watched process exited without matching `success` |
-| ⏱ `timeout` | `timeoutMs` (required, estimated by the agent) expired — the last observation is included |
-| ⚠️ `error` | the poll command cannot run (exit 126/127) |
+| ⌛ `timeout` | `timeoutMs` (required, estimated by the agent) expired — the last observation is included |
+| ❗ `error` | the poll command cannot run (exit 126/127) |
 
 Watches settling within ~2s of each other are delivered in a single message. If the agent is idle it is woken up; if it is busy the result is queued as a follow-up.
 

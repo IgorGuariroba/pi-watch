@@ -1,0 +1,5 @@
+#!/bin/bash
+# Demo shim (docs/demo): a CI run stuck in the queue; anything else goes to the real gh.
+self=$(dirname "$(readlink -f "$0")")
+if [ "$1 $2" = "run view" ]; then echo '{"status":"queued","conclusion":""}'; exit 0; fi
+PATH=${PATH//$self:/} exec gh "$@"
