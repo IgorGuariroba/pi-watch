@@ -116,6 +116,14 @@ Operators: `eq`, `ne`, `gt`, `lt`, `in`, `regex`, `contains`, combined with `all
 
 `bash` calls with `sleep N` (N ≥ 10s) or any `for/while/until … sleep … done` loop are **blocked** with a hint to use a watch instead. Short sleeps and `sleep` inside quotes/comments pass.
 
+## Long bash guard
+
+Waiting can also mean running a long command directly in `bash`:
+
+- **High `timeout` (blocks).** A `bash` call whose `timeout` is above `PI_WATCH_BASH_TIMEOUT_S` (120s) is blocked: the model asking for `timeout: 600` already knows it will run long. The reason points to `process_start` with an inline watch.
+- **Slow-call hint (does not block).** When a `bash` call takes longer than `PI_WATCH_SLOW_BASH_HINT_S` (30s), a hint is appended to its result suggesting `process_start` + watch next time.
+- **Known long commands (opt-in).** `PI_WATCH_LONG_COMMANDS=1` also blocks `npm/pnpm/yarn/bun test`, `vitest`, `jest`, `stryker`, `cargo build|test`, `docker build`, `gh run watch`. Set it to a regex to use your own list.
+
 ## UI
 
 - Status: `⏳ 2 watches · 1m12s · 1 proc`
@@ -128,7 +136,10 @@ Operators: `eq`, `ne`, `gt`, `lt`, `in`, `regex`, `contains`, combined with `all
 |---|---|---|
 | `PI_WATCH_MAX_TIMEOUT_MS` | `7200000` (2h) | upper bound for `timeoutMs` |
 | `PI_WATCH_SLEEP_THRESHOLD_S` | `10` | sleeps at/above this are blocked |
-| `PI_WATCH_BLOCK_SLEEP` | `1` | `0` disables the sleep guard |
+| `PI_WATCH_BLOCK_SLEEP` | `1` | `0` disables all blocking guards (sleep, timeout, long commands) |
+| `PI_WATCH_BASH_TIMEOUT_S` | `120` | `bash` calls with a larger `timeout` are blocked; `0` disables |
+| `PI_WATCH_SLOW_BASH_HINT_S` | `30` | `bash` calls slower than this get a hint appended; `0` disables |
+| `PI_WATCH_LONG_COMMANDS` | unset | `1` blocks the built-in list of long commands; any other value is a custom regex |
 
 ## Lifecycle
 
@@ -144,7 +155,7 @@ pi -e ./src/index.ts                      # load the local extension
 node scripts/rpc-smoke.mjs "<prompt>" 2   # drive a real Pi over RPC and watch it wake up
 ```
 
-`src/condition.ts`, `src/sleep-guard.ts` and `src/watch-manager.ts` have no Pi imports and carry the tests; `src/index.ts` wires them to Pi.
+`src/condition.ts`, `src/sleep-guard.ts`, `src/bash-guard.ts` and `src/watch-manager.ts` have no Pi imports and carry the tests; `src/index.ts` wires them to Pi.
 
 ## License
 
