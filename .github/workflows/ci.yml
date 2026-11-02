@@ -1,21 +1,54 @@
+# INVARIANTS (keep when adapting to another stack):
+# - runs on pull_request and on pushes to the default branch
+# - read-only token (permissions: contents: read), persist-credentials: false
+# - fixed job `name:`: the ruleset requires this literal check name
+# - runs the project's real install + validation commands
 name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Tests (Node 24)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
+      # No dependencies to install: only peerDependencies (provided by Pi), no lockfile.
       - run: npm test
+
+      - run: npm pack --dry-run
+
+  # Fallback for secret_scanning_non_provider_patterns (needs GitHub Secret Protection,
+  # unavailable on user-owned repos): generic secret patterns via gitleaks.
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+          GITLEAKS_ENABLE_SUMMARY: true
