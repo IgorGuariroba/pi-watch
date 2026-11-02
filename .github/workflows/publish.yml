@@ -1,7 +1,12 @@
+# INVARIANTS (keep for any registry; swap only setup/build/publish steps):
+# - trigger: push of a release tag v* (protected by the "tags: release" ruleset)
+# - environment: npm; permissions: contents: read, id-token: write
+# - checkout of the tag with persist-credentials: false
+# - tag is in default-branch history and equals v + version
+# - validation runs before publish; no registry token secrets
 name: Publish to npm
 
 # Publica no npm via Trusted Publishing (OIDC) — sem NPM_TOKEN.
-# Dispara ao enviar uma tag vX.Y.Z que bata com a versão do package.json.
 on:
   push:
     tags:
@@ -9,30 +14,45 @@ on:
 
 permissions:
   contents: read
-  id-token: write # necessário para o OIDC do npm (trusted publishing + provenance)
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: npm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # OIDC do npm (trusted publishing + provenance)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - name: Validate tag (on main and equal to package.json version)
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          git merge-base --is-ancestor HEAD origin/main || {
+            echo "::error::Tag $TAG is not in the history of origin/main"; exit 1; }
+          expected="v$(node -p 'require("./package.json").version')"
+          [ "$TAG" = "$expected" ] || {
+            echo "::error::Tag $TAG differs from package.json version ($expected)"; exit 1; }
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
-      # Trusted publishing exige npm >= 11.5.1
-      - run: npm install -g npm@latest
-
-      - name: Verificar tag x versão
-        run: |
-          PKG_VERSION="v$(node -p "require('./package.json').version")"
-          if [ "$PKG_VERSION" != "$GITHUB_REF_NAME" ]; then
-            echo "Tag $GITHUB_REF_NAME não bate com package.json ($PKG_VERSION)"
-            exit 1
-          fi
+      # Trusted Publishing (OIDC) requires npm >= 11.5.1
+      - run: npm install --global npm@12.2.1
 
       - run: npm test
 
-      - run: npm publish --access public
+      - run: npm pack --dry-run
+
+      - run: npm publish --access public --provenance
