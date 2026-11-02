@@ -155,6 +155,14 @@ pi -e ./src/index.ts                      # load the local extension
 node scripts/rpc-smoke.mjs "<prompt>" 2   # drive a real Pi over RPC and watch it wake up
 ```
 
+After cloning, enable the local Git hooks that block direct commits and pushes to `main`/`master`:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Override the protected list with `git config hooks.protectedBranches "main release"`. Bypass deliberately with `ALLOW_MAIN=1 git commit ...` / `ALLOW_MAIN=1 git push ...` (or `--no-verify`).
+
 `src/condition.ts`, `src/sleep-guard.ts`, `src/bash-guard.ts` and `src/watch-manager.ts` have no Pi imports and carry the tests; `src/index.ts` wires them to Pi.
 
 ## License
