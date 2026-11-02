@@ -120,7 +120,7 @@ Operators: `eq`, `ne`, `gt`, `lt`, `in`, `regex`, `contains`, combined with `all
 
 Waiting can also mean running a long command directly in `bash`:
 
-- **High `timeout` (blocks).** A `bash` call whose `timeout` is above `PI_WATCH_BASH_TIMEOUT_S` (120s) is blocked: the model asking for `timeout: 600` already knows it will run long. The reason points to `process_start` with an inline watch.
+- **High `timeout` (blocks).** A `bash` call whose `timeout` is above `PI_WATCH_BASH_TIMEOUT_S` (120s) is blocked: the model asking for `timeout: 600` already knows it will run long. The reason points to `process_start` with an inline watch. Commands that run `sudo` are exempt (from this check, the long-command list and the slow-bash hint): their wait is the password prompt, and `process_start` has no TTY/askpass, so sudo stays in `bash`.
 - **Slow-call hint (does not block).** When a `bash` call takes longer than `PI_WATCH_SLOW_BASH_HINT_S` (30s), a hint is appended to its result suggesting `process_start` + watch next time.
 - **Known long commands (opt-in).** `PI_WATCH_LONG_COMMANDS=1` also blocks `npm/pnpm/yarn/bun test`, `vitest`, `jest`, `stryker`, `cargo build|test`, `docker build`, `gh run watch`. Set it to a regex to use your own list.
 

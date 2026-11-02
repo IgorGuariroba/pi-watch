@@ -46,3 +46,17 @@ test("slow bash hint above the threshold only; 0 disables", () => {
 	assert.match(slowBashHint(61_000, 30) ?? "", /61s.*process_start/);
 	assert.equal(slowBashHint(600_000, 0), undefined);
 });
+
+test("sudo with a timeout above the threshold passes: the wait is the password prompt, and process_start has no TTY", () => {
+	assert.equal(checkBashCall({ command: "sudo pacman -S gitleaks", timeout: 180 }, opts).block, false);
+	assert.equal(checkBashCall({ command: "cd /tmp && sudo make install", timeout: 300 }, opts).block, false);
+	const on = { ...opts, longCommands: DEFAULT_LONG_COMMANDS };
+	assert.equal(checkBashCall({ command: "sudo docker build .", timeout: 300 }, on).block, false);
+	// not sudo as a command word: still guarded
+	assert.equal(checkBashCall({ command: "echo 'sudo' && npm test", timeout: 300 }, opts).block, true);
+	assert.equal(checkBashCall({ command: "pseudosudo-thing", timeout: 300 }, opts).block, true);
+});
+
+test("slow bash hint is skipped for sudo", () => {
+	assert.equal(slowBashHint(61_000, 30, "sudo pacman -Syu"), undefined);
+});

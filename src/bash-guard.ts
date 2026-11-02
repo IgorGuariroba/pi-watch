@@ -12,7 +12,19 @@ export type BashGuardOptions = {
 	longCommands?: RegExp;
 };
 
+/** `sudo` as a command word (start, or after `;`, `&`, `|`, `(`, `{`), ignoring quoted text and comments. */
+const SUDO = /(?:^|[;&|({])\s*sudo\b/;
+
+/**
+ * True when the command runs sudo. Its long wait is the user typing the password in the TUI prompt,
+ * and process_start has no TTY/askpass, so sudo must stay in bash.
+ */
+export function isSudo(command: unknown): boolean {
+	return SUDO.test(stripInert(String(command ?? "")));
+}
+
 export function checkBashCall(input: { command?: unknown; timeout?: unknown }, opts: BashGuardOptions): GuardResult {
+	if (isSudo(input.command)) return { block: false };
 	const timeout = Number(input.timeout);
 	if (opts.timeoutThresholdS > 0 && Number.isFinite(timeout) && timeout > opts.timeoutThresholdS) {
 		return { block: true, reason: `bash \`timeout: ${timeout}\` (> ${opts.timeoutThresholdS}s) means you expect it to run long` };
@@ -25,7 +37,8 @@ export function checkBashCall(input: { command?: unknown; timeout?: unknown }, o
 }
 
 /** Hint appended to a bash result that took long, or undefined when below the threshold (0 disables). */
-export function slowBashHint(elapsedMs: number, thresholdS: number): string | undefined {
+export function slowBashHint(elapsedMs: number, thresholdS: number, command?: unknown): string | undefined {
+	if (isSudo(command)) return undefined;
 	if (thresholdS <= 0 || elapsedMs < thresholdS * 1000) return undefined;
 	return `[pi-watch] This bash call blocked the turn for ${Math.round(elapsedMs / 1000)}s. Next time run long commands with process_start and an inline watch (e.g. success { exitCode: { eq: 0 } }), then end your turn — you will be woken up with the result.`;
 }

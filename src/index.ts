@@ -147,7 +147,7 @@ export default function piWatch(pi: ExtensionAPI) {
 		lastStatus = undefined;
 	});
 
-	const bashStartedAt = new Map<string, number>();
+	const bashStartedAt = new Map<string, { at: number; command: string }>();
 
 	pi.on("tool_call", async (event) => {
 		if (event.toolName !== "bash") return undefined;
@@ -163,10 +163,10 @@ export default function piWatch(pi: ExtensionAPI) {
 			if (long.block)
 				return {
 					block: true,
-					reason: `pi-watch blocked this bash call: ${long.reason}. A long command inside bash blocks the turn and is lost if it exceeds the timeout. Run it with process_start and an inline watch (e.g. success { exitCode: { eq: 0 } }, timeoutMs = your estimate), then end your turn — you will be woken up with the result. (Threshold: PI_WATCH_BASH_TIMEOUT_S=${BASH_TIMEOUT_S}; disable all guards with PI_WATCH_BLOCK_SLEEP=0.)`,
+					reason: `pi-watch blocked this bash call: ${long.reason}. A long command inside bash blocks the turn and is lost if it exceeds the timeout. Run it with process_start and an inline watch (e.g. success { exitCode: { eq: 0 } }, timeoutMs = your estimate), then end your turn — you will be woken up with the result. sudo stays in bash (it needs the password prompt; process_start has no TTY) and is exempt from this check. (Threshold: PI_WATCH_BASH_TIMEOUT_S=${BASH_TIMEOUT_S}; disable all guards with PI_WATCH_BLOCK_SLEEP=0.)`,
 				};
 		}
-		if (SLOW_BASH_HINT_S > 0) bashStartedAt.set(event.toolCallId, Date.now());
+		if (SLOW_BASH_HINT_S > 0) bashStartedAt.set(event.toolCallId, { at: Date.now(), command: String(input.command ?? "") });
 		return undefined;
 	});
 
@@ -175,7 +175,7 @@ export default function piWatch(pi: ExtensionAPI) {
 		const started = bashStartedAt.get(event.toolCallId);
 		bashStartedAt.delete(event.toolCallId);
 		if (started === undefined) return undefined;
-		const hint = slowBashHint(Date.now() - started, SLOW_BASH_HINT_S);
+		const hint = slowBashHint(Date.now() - started.at, SLOW_BASH_HINT_S, started.command);
 		if (!hint) return undefined;
 		return { content: [...event.content, { type: "text" as const, text: hint }] };
 	});
