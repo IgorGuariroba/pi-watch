@@ -1,6 +1,6 @@
 {
   "name": "@igor-guari/pi-watch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Wait for anything without blocking the Pi turn: register a goal, a success/failure condition and a deadline; Pi is woken up with the result. No sleep, no polling loops in the agent.",
   "keywords": [
