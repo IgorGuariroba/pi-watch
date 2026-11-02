@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Type } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Box, Text } from "@earendil-works/pi-tui";
+import { checkBashCall, parseLongCommands, slowBashHint } from "./bash-guard.ts";
 import { checkCommand } from "./sleep-guard.ts";
 import { WatchManager, type WatchResult, type WatchSpec } from "./watch-manager.ts";
 
@@ -13,6 +14,13 @@ const env = process.env;
 const MAX_TIMEOUT_MS = Number(env.PI_WATCH_MAX_TIMEOUT_MS) || 2 * 60 * 60 * 1000;
 const SLEEP_THRESHOLD_S = Number(env.PI_WATCH_SLEEP_THRESHOLD_S) || 10;
 const BLOCK_SLEEP = env.PI_WATCH_BLOCK_SLEEP !== "0";
+const envSeconds = (value: string | undefined, fallback: number) => {
+	const n = Number(value);
+	return value !== undefined && value !== "" && Number.isFinite(n) && n >= 0 ? n : fallback;
+};
+const BASH_TIMEOUT_S = envSeconds(env.PI_WATCH_BASH_TIMEOUT_S, 120);
+const SLOW_BASH_HINT_S = envSeconds(env.PI_WATCH_SLOW_BASH_HINT_S, 30);
+const LONG_COMMANDS = parseLongCommands(env.PI_WATCH_LONG_COMMANDS);
 
 const Condition = (description: string) =>
 	Type.Record(Type.String(), Type.Any(), {
@@ -139,16 +147,37 @@ export default function piWatch(pi: ExtensionAPI) {
 		lastStatus = undefined;
 	});
 
+	const bashStartedAt = new Map<string, number>();
+
 	pi.on("tool_call", async (event) => {
-		if (!BLOCK_SLEEP || event.toolName !== "bash") return undefined;
-		const verdict = checkCommand(String((event.input as { command?: string }).command ?? ""), {
-			thresholdS: SLEEP_THRESHOLD_S,
-		});
-		if (!verdict.block) return undefined;
-		return {
-			block: true,
-			reason: `pi-watch blocked this bash call: ${verdict.reason}. Waiting inside bash blocks the turn. Use watch_create with a poll (e.g. poll.cmd = the status check, success = what "done" looks like, timeoutMs = your estimate) or process_start with an inline watch, then end your turn — you will be woken up with the result. (Disable with PI_WATCH_BLOCK_SLEEP=0.)`,
-		};
+		if (event.toolName !== "bash") return undefined;
+		const input = event.input as { command?: string; timeout?: number };
+		if (BLOCK_SLEEP) {
+			const sleep = checkCommand(String(input.command ?? ""), { thresholdS: SLEEP_THRESHOLD_S });
+			if (sleep.block)
+				return {
+					block: true,
+					reason: `pi-watch blocked this bash call: ${sleep.reason}. Waiting inside bash blocks the turn. Use watch_create with a poll (e.g. poll.cmd = the status check, success = what "done" looks like, timeoutMs = your estimate) or process_start with an inline watch, then end your turn — you will be woken up with the result. (Disable with PI_WATCH_BLOCK_SLEEP=0.)`,
+				};
+			const long = checkBashCall(input, { timeoutThresholdS: BASH_TIMEOUT_S, longCommands: LONG_COMMANDS });
+			if (long.block)
+				return {
+					block: true,
+					reason: `pi-watch blocked this bash call: ${long.reason}. A long command inside bash blocks the turn and is lost if it exceeds the timeout. Run it with process_start and an inline watch (e.g. success { exitCode: { eq: 0 } }, timeoutMs = your estimate), then end your turn — you will be woken up with the result. (Threshold: PI_WATCH_BASH_TIMEOUT_S=${BASH_TIMEOUT_S}; disable all guards with PI_WATCH_BLOCK_SLEEP=0.)`,
+				};
+		}
+		if (SLOW_BASH_HINT_S > 0) bashStartedAt.set(event.toolCallId, Date.now());
+		return undefined;
+	});
+
+	pi.on("tool_result", async (event) => {
+		if (event.toolName !== "bash") return undefined;
+		const started = bashStartedAt.get(event.toolCallId);
+		bashStartedAt.delete(event.toolCallId);
+		if (started === undefined) return undefined;
+		const hint = slowBashHint(Date.now() - started, SLOW_BASH_HINT_S);
+		if (!hint) return undefined;
+		return { content: [...event.content, { type: "text" as const, text: hint }] };
 	});
 
 	pi.registerMessageRenderer<{ results: WatchResult[] }>(MESSAGE_TYPE, (message, { expanded, outputPad }, theme) => {

@@ -5,7 +5,7 @@ const SLEEP = /\bsleep\s+(\d+(?:\.\d+)?)([smhd]?)\b/g;
 const LOOP = /\b(for|while|until)\b[\s\S]*?\bdo\b[\s\S]*?\bdone\b/g;
 
 /** Blank out quoted strings and comments so only executable words remain. */
-function stripInert(cmd: string): string {
+export function stripInert(cmd: string): string {
 	return cmd
 		.replace(/'[^']*'/g, "''")
 		.replace(/"(?:[^"\\]|\\.)*"/g, '""')
