@@ -2,6 +2,20 @@
 # Bloqueia commits diretos em branches protegidas.
 # Branches: git config hooks.protectedBranches (padrão: "main master").
 # Bypass: ALLOW_MAIN=1 git commit ...  (ou git commit --no-verify)
+#
+# Também roda o gitleaks nas mudanças staged, se estiver instalado
+# (ALLOW_MAIN não pula essa checagem; só --no-verify pula).
+
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --staged --redact --no-banner --verbose --log-level warn --exit-code 1 >&2; then
+    cat >&2 <<MSG
+✖ Commit bloqueado: o gitleaks encontrou possível segredo nas mudanças staged.
+  Remova o segredo (e rotacione-o se já foi exposto).
+  Falso positivo: adicione o fingerprint em .gitleaksignore.
+MSG
+    exit 1
+  fi
+fi
 
 [ "${ALLOW_MAIN:-}" = "1" ] && exit 0
 

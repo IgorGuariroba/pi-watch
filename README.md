@@ -163,6 +163,8 @@ git config core.hooksPath .githooks
 
 Override the protected list with `git config hooks.protectedBranches "main release"`. Bypass deliberately with `ALLOW_MAIN=1 git commit ...` / `ALLOW_MAIN=1 git push ...` (or `--no-verify`).
 
+If [gitleaks](https://github.com/gitleaks/gitleaks) is installed, `pre-commit` also scans staged changes for secrets (`ALLOW_MAIN` does not skip it; only `--no-verify` does). Mark false positives by adding their fingerprint to `.gitleaksignore`. CI runs the same scan on every PR.
+
 `src/condition.ts`, `src/sleep-guard.ts`, `src/bash-guard.ts` and `src/watch-manager.ts` have no Pi imports and carry the tests; `src/index.ts` wires them to Pi.
 
 ## License
