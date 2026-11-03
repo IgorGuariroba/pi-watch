@@ -3,13 +3,14 @@
 # stdin: <local ref> <local sha> <remote ref> <remote sha>
 # Branches: git config hooks.protectedBranches (padrão: "main master").
 # Bypass: ALLOW_MAIN=1 git push ...  (ou git push --no-verify)
-
-[ "${ALLOW_MAIN:-}" = "1" ] && exit 0
+#
+# Depois roda os testes do projeto (npm test, o mesmo do CI); só --no-verify pula.
 
 protected=$(git config --get hooks.protectedBranches | tr ',' ' ')
 [ -n "$protected" ] || protected="main master"
 
 status=0
+[ "${ALLOW_MAIN:-}" = "1" ] && { cat >/dev/null; protected=""; }
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ -n "$remote_ref" ] || continue
   for p in $protected; do
@@ -23,4 +24,10 @@ MSG
     fi
   done
 done
-exit $status
+[ $status -eq 0 ] || exit $status
+
+if [ -f package.json ] && ! npm test --silent >&2; then
+  echo "✖ Push bloqueado: npm test falhou (bypass: git push --no-verify)." >&2
+  exit 1
+fi
+exit 0

@@ -165,6 +165,8 @@ Override the protected list with `git config hooks.protectedBranches "main relea
 
 If [gitleaks](https://github.com/gitleaks/gitleaks) is installed, `pre-commit` also scans staged changes for secrets (`ALLOW_MAIN` does not skip it; only `--no-verify` does). Mark false positives by adding their fingerprint to `.gitleaksignore`. CI runs the same scan on every PR.
 
+`pre-commit` also blocks staged merge-conflict markers and new files above 500 KB (change the limit with `git config hooks.maxFileKB 2000`; Git LFS files are skipped). `pre-push` runs `npm test`, the same as CI. Only `--no-verify` skips these checks.
+
 `src/condition.ts`, `src/sleep-guard.ts`, `src/bash-guard.ts` and `src/watch-manager.ts` have no Pi imports and carry the tests; `src/index.ts` wires them to Pi.
 
 ## License

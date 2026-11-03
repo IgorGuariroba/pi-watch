@@ -1,0 +1,29 @@
+# INVARIANTS (keep when adapting to another convention or platform):
+# - trigger `pull_request` (never pull_request_target) with `edited`, so a renamed PR is re-checked
+# - no checkout and no token (permissions: {}): it only reads the event payload
+# - the title reaches the script through `env:`, never interpolated into `run:` (script injection)
+# - fixed job `name:`: the ruleset requires this literal check name
+# - the pattern matches the repo's convention (default: Conventional Commits; read commitlint/commitizen config if present)
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  title:
+    name: PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conventional Commits title (it becomes the squash commit message)
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if printf '%s\n' "$TITLE" | grep -qE '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?!?: [^ ].*'; then
+            echo "ok: $TITLE"
+          else
+            echo "::error::PR title must follow Conventional Commits, e.g. 'feat(api): add login' (got: $TITLE)"
+            exit 1
+          fi
