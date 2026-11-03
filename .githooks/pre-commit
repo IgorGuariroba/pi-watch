@@ -5,6 +5,9 @@
 #
 # Também roda o gitleaks nas mudanças staged, se estiver instalado
 # (ALLOW_MAIN não pula essa checagem; só --no-verify pula).
+#
+# Higiene (ALLOW_MAIN não pula): bloqueia marcadores de conflito staged e
+# arquivos novos acima de git config hooks.maxFileKB (padrão 500; Git LFS ignorado).
 
 if command -v gitleaks >/dev/null 2>&1; then
   if ! gitleaks git --staged --redact --no-banner --verbose --log-level warn --exit-code 1 >&2; then
@@ -17,15 +20,14 @@ MSG
   fi
 fi
 
-[ "${ALLOW_MAIN:-}" = "1" ] && exit 0
-
-branch=$(git symbolic-ref --short -q HEAD) || exit 0  # detached HEAD: deixa passar
+if [ "${ALLOW_MAIN:-}" != "1" ]; then
+branch=$(git symbolic-ref --short -q HEAD)  # vazio em detached HEAD: deixa passar
 
 protected=$(git config --get hooks.protectedBranches | tr ',' ' ')
 [ -n "$protected" ] || protected="main master"
 
 for p in $protected; do
-  if [ "$branch" = "$p" ]; then
+  if [ -n "$branch" ] && [ "$branch" = "$p" ]; then
     cat >&2 <<MSG
 ✖ Commit bloqueado: a branch '$branch' é protegida.
   Crie uma branch de trabalho:  git switch -c feat/<nome>
@@ -34,4 +36,32 @@ MSG
     exit 1
   fi
 done
+fi
+
+check_merge_conflict() {
+  hits=$(git diff --cached -U0 --no-color --diff-filter=ACMR | grep -nE '^\+(<{7}|>{7})( |$)' | head -5)
+  [ -z "$hits" ] && return 0
+  echo "✖ Commit bloqueado: marcadores de conflito nas mudanças staged:" >&2
+  printf '%s\n' "$hits" | sed 's/^/   /' >&2
+  return 1
+}
+
+check_added_large_files() {
+  max_kb=$(git config --get hooks.maxFileKB); max_kb=${max_kb:-500}
+  big=$(git diff --cached --name-only --diff-filter=A -z | xargs -0 -I{} sh -c '
+    [ "$(git check-attr filter -- "$1" | sed "s/.*: //")" = lfs ] && exit 0
+    kb=$(( ($(git cat-file -s ":$1") + 1023) / 1024 ))
+    [ "$kb" -gt "$2" ] && echo "$1 (${kb} KB)"
+    exit 0' sh {} "$max_kb")
+  [ -z "$big" ] && return 0
+  {
+    echo "✖ Commit bloqueado: arquivos novos acima de ${max_kb} KB (git config hooks.maxFileKB):"
+    printf '%s\n' "$big" | sed 's/^/   /'
+    echo "  Use Git LFS, ou aumente o limite se eles devem ir para o git."
+  } >&2
+  return 1
+}
+
+check_merge_conflict || exit 1
+check_added_large_files || exit 1
 exit 0
